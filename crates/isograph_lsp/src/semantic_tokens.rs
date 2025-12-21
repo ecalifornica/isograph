@@ -137,10 +137,11 @@ fn absolutize_relative_token<'a>(
                 absolute_char_start: iso_literal_extraction_span.start
                     + relative_token.embedded_location.span.start
                     + *iterated_so_far_within_token,
-                len: line_text.len() as u32,
+                len: u32::try_from(line_text.len()).expect("Line length exceeds u32::MAX"),
                 semantic_token: relative_token.item,
             };
-            *iterated_so_far_within_token += line_text.len() as u32;
+            *iterated_so_far_within_token +=
+                u32::try_from(line_text.len()).expect("Line length exceeds u32::MAX");
             token.wrap_some()
         })
 }
@@ -170,14 +171,19 @@ fn convert_absolute_token_to_lsp_token<'a>(
 }
 
 pub fn delta_line_delta_start(text: &str) -> (u32, u32) {
-    let mut last_line_break_index = 0;
+    let mut last_line_break_index: usize = 0;
     let mut line_break_count = 0;
-    for (index, char) in text.chars().enumerate() {
-        if char == '\n' {
+    for (index, byte) in text.bytes().enumerate() {
+        if byte == b'\n' {
             line_break_count += 1;
-            last_line_break_index = index as u32 + 1;
+            last_line_break_index = index + 1;
         }
     }
 
-    (line_break_count, text.len() as u32 - last_line_break_index)
+    let chars_on_last_line = text.len() - last_line_break_index;
+
+    (
+        line_break_count,
+        u32::try_from(chars_on_last_line).expect("Final line length exceeds u32::MAX"),
+    )
 }
